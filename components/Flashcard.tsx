@@ -74,9 +74,9 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
       dragMomentum={false}
       onDragEnd={handleDragEnd}
       animate={
-        direcaoSaida ? { x: direcaoSaida === "direita" ? 700 : -700, opacity: 0 } : { x: 0, opacity: 1 }
+        direcaoSaida ? { x: direcaoSaida === "direita" ? 450 : -450, opacity: 0 } : { x: 0, opacity: 1 }
       }
-      transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
+      transition={{ type: "spring", stiffness: 520, damping: 40, mass: 0.5 }}
       onAnimationComplete={() => {
         if (direcaoSaida) onProximo();
       }}
@@ -109,7 +109,7 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
             exit={{ scaleX: 0 }}
             transition={{ duration: 0.22, ease: "easeIn" }}
             style={{ willChange: "transform" }}
-            className="flex h-full w-full flex-col gap-3 rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:p-6"
+            className="flex h-full w-full flex-col gap-3 rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_4px_14px_-6px_rgba(33,28,24,0.18)] sm:p-6"
           >
             <FuroDeArgola />
             <div className="flex flex-1 flex-col justify-center gap-5 overflow-y-auto">
@@ -140,7 +140,7 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
             exit={{ scaleX: 0 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             style={{ willChange: "transform" }}
-            className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
+            className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_4px_14px_-6px_rgba(33,28,24,0.18)] sm:gap-4 sm:p-6"
           >
             <FuroDeArgola />
             <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Gabarito</p>

@@ -79,14 +79,14 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
             {proximoCard && (
               <div
                 aria-hidden
-                className="absolute inset-x-3 inset-y-2 rounded-lg border border-sand-300 bg-paper-raised opacity-60 shadow-[0_6px_20px_-10px_rgba(33,28,24,0.25)]"
+                className="absolute inset-x-3 inset-y-2 rounded-lg border border-sand-300 bg-paper-raised opacity-60"
                 style={{ transform: "scale(0.95) translateY(10px)" }}
               />
             )}
             <Flashcard key={cardAtual.id} flashcard={cardAtual} onResponder={handleResponder} onProximo={handleProximo} />
           </div>
         ) : (
-          <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]">
+          <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_4px_14px_-6px_rgba(33,28,24,0.18)]">
             <span className="text-3xl">🔖</span>
             <h2 className="font-serif text-2xl italic text-ink">Módulo concluído</h2>
             <p className="text-sm text-ink-muted">

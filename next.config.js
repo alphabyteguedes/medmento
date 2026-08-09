@@ -1,14 +1,9 @@
-// PASSO 5: Configuração do PWA usando o pacote next-pwa.
-// Ele gera automaticamente o service worker (public/sw.js) responsável por
-// cachear os assets e permitir uso offline / instalação do app.
-const withPWA = require("next-pwa")({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  // Desativa o PWA em desenvolvimento para não cachear e atrapalhar o hot-reload.
-  disable: process.env.NODE_ENV === "development",
-});
-
+// PASSO 5: PWA via configuração nativa do Next.js + service worker manual
+// (public/sw.js). Antes usava o pacote next-pwa, mas ele cacheia .js com
+// StaleWhileRevalidate por padrão — isso deixava usuários presos em versões
+// antigas do app depois de um deploy, mesmo recarregando a página. Um
+// service worker próprio, sem estratégia de cache nenhuma, elimina essa
+// classe de bug: toda requisição vai direto pra rede.
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -18,4 +13,4 @@ const nextConfig = {
   },
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = nextConfig;

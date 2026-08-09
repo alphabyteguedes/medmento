@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
+import RegistroServiceWorker from "@/components/RegistroServiceWorker";
 import "./globals.css";
 
 // Serifada editorial para títulos + sans humanista para UI — combinação
@@ -46,7 +47,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${fraunces.variable} ${plexSans.variable}`}>
-      <body>{children}</body>
+      <body>
+        <RegistroServiceWorker />
+        {children}
+      </body>
     </html>
   );
 }

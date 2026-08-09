@@ -6,12 +6,6 @@
 /out/
 next-env.d.ts
 
-# PWA (gerado automaticamente pelo next-pwa a cada build)
-/public/sw.js
-/public/workbox-*.js
-/public/sw.js.map
-/public/workbox-*.js.map
-
 # Variáveis de ambiente
 .env.local
 .env*.local
