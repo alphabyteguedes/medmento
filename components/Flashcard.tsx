@@ -8,14 +8,18 @@
 // - Depois de virado, o card pode ser arrastado (drag="x") para os lados;
 //   ao ultrapassar o limite de arraste, ele "voa" para fora da tela e o
 //   componente pai é avisado via `onProximo` para mostrar a próxima pergunta.
+//
+// O componente ocupa 100% da altura/largura do container do pai (que define
+// o tamanho real do card) — isso é o que permite ao EstudoDeck empilhar um
+// "peek" do próximo card por baixo, estilo Tinder.
 // =============================================================================
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Flashcard as FlashcardType, Letra } from "@/lib/types";
 
-const LIMITE_DISTANCIA_SWIPE = 120; // px arrastados para considerar um swipe
-const LIMITE_VELOCIDADE_SWIPE = 500; // px/s — permite swipe rápido mesmo com pouco arraste
+const LIMITE_DISTANCIA_SWIPE = 100; // px arrastados para considerar um swipe
+const LIMITE_VELOCIDADE_SWIPE = 400; // px/s — permite swipe rápido mesmo com pouco arraste
 
 interface FlashcardProps {
   flashcard: FlashcardType;
@@ -36,12 +40,9 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
 
   const virado = letraSelecionada !== null;
 
-  // Sempre que o flashcard mudar (próxima pergunta), reseta o estado visual.
-  useEffect(() => {
-    setLetraSelecionada(null);
-    setDirecaoSaida(null);
-    x.set(0);
-  }, [flashcard.id, x]);
+  // Não precisa de efeito para resetar ao trocar de card: o componente pai
+  // (EstudoDeck) monta uma instância nova a cada flashcard via `key`, então
+  // todo o estado (incluindo `x`) já nasce zerado.
 
   function selecionarAlternativa(letra: Letra) {
     if (virado) return; // já respondida, ignora novos cliques
@@ -63,22 +64,23 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
   ) as [Letra, string][];
 
   return (
-    <div style={{ perspective: 1200 }} className="mx-auto w-full max-w-md select-none">
+    <div style={{ perspective: 1200 }} className="h-full w-full select-none">
       <motion.div
-        style={{ x, rotate }}
+        style={{ x, rotate, touchAction: "pan-y", willChange: "transform" }}
         drag={virado ? "x" : false}
-        dragElastic={0.7}
+        dragElastic={0.6}
+        dragMomentum={false}
         onDragEnd={handleDragEnd}
         animate={
           direcaoSaida
             ? { x: direcaoSaida === "direita" ? 700 : -700, opacity: 0 }
             : { x: 0, opacity: 1 }
         }
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
         onAnimationComplete={() => {
           if (direcaoSaida) onProximo();
         }}
-        className={`relative ${virado ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`relative h-full w-full ${virado ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
         {/* Carimbos estilo ficheiro, só fazem sentido depois que o card foi virado */}
         {virado && (
@@ -100,25 +102,27 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
 
         <motion.div
           animate={{ rotateY: virado ? 180 : 0 }}
-          transition={{ duration: 0.45, ease: "easeInOut" }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
           style={{ transformStyle: "preserve-3d" }}
-          className="relative min-h-[460px]"
+          className="relative h-full w-full"
         >
           {/* ---------- FRENTE ---------- */}
           <div
             style={{ backfaceVisibility: "hidden" }}
-            className="absolute inset-0 flex flex-col gap-4 rounded-lg border border-sand-300 bg-paper-raised p-6 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]"
+            className="absolute inset-0 flex flex-col gap-3 rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
           >
             <FuroDeArgola />
             <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Pergunta</p>
-            <p className="flex-1 font-serif text-xl leading-snug text-ink">{flashcard.question}</p>
+            <p className="flex-1 overflow-y-auto font-serif text-lg leading-snug text-ink sm:text-xl">
+              {flashcard.question}
+            </p>
             <div className="flex flex-col gap-2">
               {alternativas.map(([letra, texto]) => (
                 <button
                   key={letra}
                   type="button"
                   onClick={() => selecionarAlternativa(letra)}
-                  className="w-full rounded-md border border-sand-300 p-3 text-left text-ink transition-colors hover:border-garnet-400 hover:bg-garnet-50"
+                  className="w-full rounded-md border border-sand-300 p-2.5 text-left text-sm text-ink transition-colors hover:border-garnet-400 hover:bg-garnet-50 sm:p-3 sm:text-base"
                 >
                   <span className="mr-2 font-serif italic text-ink-muted">{letra}</span>
                   {texto}
@@ -130,7 +134,7 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
           {/* ---------- VERSO ---------- */}
           <div
             style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
-            className="absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-6 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]"
+            className="absolute inset-0 flex flex-col gap-3 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
           >
             <FuroDeArgola />
             <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Gabarito</p>
@@ -145,7 +149,7 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
                     ? "border-wrong bg-garnet-50 text-wrong"
                     : "border-sand-200 text-ink-faint opacity-70";
                 return (
-                  <div key={letra} className={`rounded-md border p-2.5 text-sm ${estilo}`}>
+                  <div key={letra} className={`rounded-md border p-2 text-sm ${estilo}`}>
                     <span className="mr-2 font-serif italic">{letra}</span>
                     {texto}
                   </div>
@@ -165,7 +169,7 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
               </div>
             )}
 
-            <p className="mt-auto text-center text-xs text-ink-faint">← arraste o card para continuar →</p>
+            <p className="mt-auto pt-1 text-center text-xs text-ink-faint">← arraste o card para continuar →</p>
           </div>
         </motion.div>
       </motion.div>

@@ -2,6 +2,11 @@
 
 // Orquestra a sessão de estudo de um módulo: mantém o índice do card atual,
 // aplica as regras de gamificação (XP + streak) e mostra a tela de conclusão.
+//
+// A tela inteira é de altura fixa (h-dvh + overflow-hidden) — sem isso, em
+// celulares o navegador fica em dúvida entre rolar a página ou obedecer o
+// arraste horizontal do card, e o swipe fica travado/lento. Sem scroll de
+// página, o gesto de arrastar pertence 100% ao card.
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -26,6 +31,7 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
   const [pulsoXp, setPulsoXp] = useState(false);
 
   const cardAtual = flashcards[indiceAtual];
+  const proximoCard = flashcards[indiceAtual + 1];
   const concluido = indiceAtual >= flashcards.length;
 
   // Registra a "presença" de hoje assim que o usuário começa a estudar.
@@ -53,8 +59,8 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
   }
 
   return (
-    <div className="textura-papel flex min-h-screen flex-col gap-6 p-4">
-      <header className="mx-auto flex w-full max-w-md items-center gap-3">
+    <div className="textura-papel flex h-dvh flex-col gap-3 overflow-hidden p-3 sm:gap-4 sm:p-4">
+      <header className="mx-auto flex w-full max-w-md shrink-0 items-center gap-3">
         <Link href="/modules" className="text-sm text-ink-faint hover:text-garnet-500">
           ← Módulos
         </Link>
@@ -64,13 +70,23 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
         </div>
       </header>
 
-      <p className="text-center font-serif text-lg italic text-ink">{moduloTitulo}</p>
+      <p className="shrink-0 text-center font-serif text-base italic text-ink sm:text-lg">{moduloTitulo}</p>
 
-      <div className="flex flex-1 items-center justify-center">
+      <div className="relative min-h-0 flex-1">
         {!concluido ? (
-          <Flashcard flashcard={cardAtual} onResponder={handleResponder} onProximo={handleProximo} />
+          <div className="relative mx-auto h-full w-full max-w-md">
+            {/* Peek do próximo card, estilo Tinder — puramente decorativo, sem interação. */}
+            {proximoCard && (
+              <div
+                aria-hidden
+                className="absolute inset-x-3 inset-y-2 rounded-lg border border-sand-300 bg-paper-raised opacity-60 shadow-[0_6px_20px_-10px_rgba(33,28,24,0.25)]"
+                style={{ transform: "scale(0.95) translateY(10px)" }}
+              />
+            )}
+            <Flashcard key={cardAtual.id} flashcard={cardAtual} onResponder={handleResponder} onProximo={handleProximo} />
+          </div>
         ) : (
-          <div className="mx-auto flex max-w-sm flex-col items-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]">
+          <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]">
             <span className="text-3xl">🔖</span>
             <h2 className="font-serif text-2xl italic text-ink">Módulo concluído</h2>
             <p className="text-sm text-ink-muted">
@@ -87,7 +103,7 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
       </div>
 
       {!concluido && (
-        <p className="text-center text-xs uppercase tracking-[0.15em] text-ink-faint">
+        <p className="shrink-0 text-center text-xs uppercase tracking-[0.15em] text-ink-faint">
           {indiceAtual + 1} de {flashcards.length}
         </p>
       )}
