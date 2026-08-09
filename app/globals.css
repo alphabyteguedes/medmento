@@ -28,3 +28,15 @@ h3 {
   background-image: radial-gradient(circle at 1px 1px, rgba(33, 28, 24, 0.055) 1px, transparent 0);
   background-size: 22px 22px;
 }
+
+/* Esconde a barra de rolagem da trilha de flashcards sem desativar o gesto
+   de rolagem em si — só o indicador visual, que não faz sentido num
+   carrossel de cards. */
+.sem-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sem-scrollbar::-webkit-scrollbar {
+  display: none;
+}

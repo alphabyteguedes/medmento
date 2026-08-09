@@ -1,13 +1,20 @@
 "use client";
 
-// Orquestra a sessão de estudo de um módulo: mantém o índice do card atual,
+// Orquestra a sessão de estudo de um módulo: mantém o índice do card visível,
 // aplica as regras de gamificação (XP + streak) e mostra a tela de conclusão.
 //
-// A tela inteira é de altura fixa (h-dvh + overflow-hidden) — sem isso, em
-// celulares o navegador fica em dúvida entre rolar a página ou obedecer o
-// arraste horizontal do card, e o swipe fica travado/lento. Sem scroll de
-// página, o gesto de arrastar pertence 100% ao card.
-import { useEffect, useMemo, useState } from "react";
+// ARQUITETURA DA TROCA DE CARD: em vez de simular o gesto de arrastar com
+// JavaScript (Framer Motion drag), os flashcards ficam lado a lado numa
+// trilha com rolagem horizontal NATIVA (scroll-snap) — a mesma tecnologia
+// de um carrossel de fotos. O navegador cuida do gesto inteiro (toque,
+// física, "encaixe" no card seguinte) direto no compositor gráfico, sem
+// JavaScript no meio do caminho. Isso é o que garante fluidez em qualquer
+// aparelho: rolagem nativa é praticamente impossível de travar, diferente
+// de reimplementar o gesto "na mão" com listeners de toque.
+//
+// Um IntersectionObserver descobre qual card está centralizado na tela pra
+// atualizar o contador "3 de 12" — não controla a rolagem em si, só observa.
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { registrarAcerto, atualizarStreak } from "@/lib/gamification";
@@ -24,14 +31,13 @@ interface EstudoDeckProps {
 
 export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: EstudoDeckProps) {
   const supabase = useMemo(() => createClient(), []);
+  const trilhaRef = useRef<HTMLDivElement>(null);
 
   const [indiceAtual, setIndiceAtual] = useState(0);
   const [xp, setXp] = useState(perfilInicial.xp);
   const [streakDays, setStreakDays] = useState(perfilInicial.streak_days);
   const [pulsoXp, setPulsoXp] = useState(false);
 
-  const cardAtual = flashcards[indiceAtual];
-  const proximoCard = flashcards[indiceAtual + 1];
   const concluido = indiceAtual >= flashcards.length;
 
   // Registra a "presença" de hoje assim que o usuário começa a estudar.
@@ -41,6 +47,29 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
       .catch((erro) => console.error("Falha ao atualizar streak", erro));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Observa qual "slide" da trilha está centralizado, pra saber em que card
+  // o usuário está (incluindo o último slide, que é a tela de conclusão).
+  useEffect(() => {
+    const trilha = trilhaRef.current;
+    if (!trilha) return;
+
+    const slides = Array.from(trilha.children) as HTMLElement[];
+    const observer = new IntersectionObserver(
+      (entradas) => {
+        for (const entrada of entradas) {
+          if (entrada.isIntersecting) {
+            const indice = slides.indexOf(entrada.target as HTMLElement);
+            if (indice !== -1) setIndiceAtual(indice);
+          }
+        }
+      },
+      { root: trilha, threshold: 0.6 }
+    );
+
+    slides.forEach((slide) => observer.observe(slide));
+    return () => observer.disconnect();
+  }, [flashcards.length]);
 
   async function handleResponder(correta: boolean) {
     if (!correta) return;
@@ -52,10 +81,6 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
     } catch (erro) {
       console.error("Falha ao registrar XP", erro);
     }
-  }
-
-  function handleProximo() {
-    setIndiceAtual((atual) => atual + 1);
   }
 
   return (
@@ -72,21 +97,19 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
 
       <p className="shrink-0 text-center font-serif text-base italic text-ink sm:text-lg">{moduloTitulo}</p>
 
-      <div className="relative min-h-0 flex-1">
-        {!concluido ? (
-          <div className="relative mx-auto h-full w-full max-w-md">
-            {/* Peek do próximo card, estilo Tinder — puramente decorativo, sem interação. */}
-            {proximoCard && (
-              <div
-                aria-hidden
-                className="absolute inset-x-3 inset-y-2 rounded-lg border border-sand-300 bg-paper-raised opacity-60"
-                style={{ transform: "scale(0.95) translateY(10px)" }}
-              />
-            )}
-            <Flashcard key={cardAtual.id} flashcard={cardAtual} onResponder={handleResponder} onProximo={handleProximo} />
+      <div
+        ref={trilhaRef}
+        className="sem-scrollbar flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
+        style={{ overscrollBehaviorX: "contain" }}
+      >
+        {flashcards.map((flashcard) => (
+          <div key={flashcard.id} className="w-full shrink-0 snap-center px-1.5">
+            <Flashcard flashcard={flashcard} onResponder={handleResponder} />
           </div>
-        ) : (
-          <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_4px_14px_-6px_rgba(33,28,24,0.18)]">
+        ))}
+
+        <div className="flex w-full shrink-0 snap-center items-center justify-center px-1.5">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_4px_14px_-6px_rgba(33,28,24,0.18)]">
             <span className="text-3xl">🔖</span>
             <h2 className="font-serif text-2xl italic text-ink">Módulo concluído</h2>
             <p className="text-sm text-ink-muted">
@@ -99,14 +122,12 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
               Voltar aos módulos
             </Link>
           </div>
-        )}
+        </div>
       </div>
 
-      {!concluido && (
-        <p className="shrink-0 text-center text-xs uppercase tracking-[0.15em] text-ink-faint">
-          {indiceAtual + 1} de {flashcards.length}
-        </p>
-      )}
+      <p className="shrink-0 text-center text-xs uppercase tracking-[0.15em] text-ink-faint">
+        {concluido ? "concluído" : `${indiceAtual + 1} de ${flashcards.length}`}
+      </p>
     </div>
   );
 }
