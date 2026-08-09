@@ -10,14 +10,14 @@ export default function XPBar({ xp }: { xp: number }) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="whitespace-nowrap text-xs font-bold text-brand-600">Nível {nivel}</span>
-      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+      <span className="whitespace-nowrap font-serif text-sm italic text-garnet-500">Nível {nivel}</span>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-sand-200">
         <div
-          className="h-full rounded-full bg-brand-500 transition-all duration-500 ease-out"
+          className="h-full rounded-full bg-garnet-500 transition-all duration-500 ease-out"
           style={{ width: `${progresso}%` }}
         />
       </div>
-      <span className="whitespace-nowrap text-xs text-slate-500">{xp} XP</span>
+      <span className="whitespace-nowrap text-xs text-ink-muted">{xp} XP</span>
     </div>
   );
 }

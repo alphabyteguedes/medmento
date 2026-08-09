@@ -14,7 +14,7 @@ export default function BotaoLogout() {
   }
 
   return (
-    <button onClick={sair} className="text-sm text-slate-400 hover:text-slate-600">
+    <button onClick={sair} className="text-sm text-ink-faint hover:text-garnet-500">
       Sair
     </button>
   );

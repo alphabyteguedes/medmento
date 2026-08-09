@@ -80,20 +80,20 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
         }}
         className={`relative ${virado ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
-        {/* Carimbos estilo Tinder, só fazem sentido depois que o card foi virado */}
+        {/* Carimbos estilo ficheiro, só fazem sentido depois que o card foi virado */}
         {virado && (
           <>
             <motion.span
               style={{ opacity: carimboEsquerda }}
-              className="pointer-events-none absolute left-4 top-4 z-10 -rotate-12 rounded border-2 border-wrong px-2 py-1 text-sm font-bold text-wrong"
+              className="pointer-events-none absolute left-5 top-5 z-10 -rotate-12 rounded border-2 border-ink-faint px-2 py-0.5 font-serif text-sm italic text-ink-faint"
             >
-              ANTERIOR
+              anterior
             </motion.span>
             <motion.span
               style={{ opacity: carimboDireita }}
-              className="pointer-events-none absolute right-4 top-4 z-10 rotate-12 rounded border-2 border-correct px-2 py-1 text-sm font-bold text-correct"
+              className="pointer-events-none absolute right-5 top-5 z-10 rotate-12 rounded border-2 border-garnet-500 px-2 py-0.5 font-serif text-sm italic text-garnet-500"
             >
-              PRÓXIMA
+              próxima
             </motion.span>
           </>
         )}
@@ -102,23 +102,25 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
           animate={{ rotateY: virado ? 180 : 0 }}
           transition={{ duration: 0.45, ease: "easeInOut" }}
           style={{ transformStyle: "preserve-3d" }}
-          className="relative min-h-[440px]"
+          className="relative min-h-[460px]"
         >
           {/* ---------- FRENTE ---------- */}
           <div
             style={{ backfaceVisibility: "hidden" }}
-            className="absolute inset-0 flex flex-col gap-3 rounded-2xl bg-white p-6 shadow-xl"
+            className="absolute inset-0 flex flex-col gap-4 rounded-lg border border-sand-300 bg-paper-raised p-6 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]"
           >
-            <p className="flex-1 text-lg font-semibold text-slate-800">{flashcard.question}</p>
+            <FuroDeArgola />
+            <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Pergunta</p>
+            <p className="flex-1 font-serif text-xl leading-snug text-ink">{flashcard.question}</p>
             <div className="flex flex-col gap-2">
               {alternativas.map(([letra, texto]) => (
                 <button
                   key={letra}
                   type="button"
                   onClick={() => selecionarAlternativa(letra)}
-                  className="w-full rounded-xl border-2 border-slate-200 p-3 text-left text-slate-700 transition-colors hover:border-brand-400 hover:bg-brand-50"
+                  className="w-full rounded-md border border-sand-300 p-3 text-left text-ink transition-colors hover:border-garnet-400 hover:bg-garnet-50"
                 >
-                  <span className="mr-2 font-semibold">{letra})</span>
+                  <span className="mr-2 font-serif italic text-ink-muted">{letra}</span>
                   {texto}
                 </button>
               ))}
@@ -128,42 +130,55 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
           {/* ---------- VERSO ---------- */}
           <div
             style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
-            className="absolute inset-0 flex flex-col gap-3 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className="absolute inset-0 flex flex-col gap-4 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-6 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]"
           >
+            <FuroDeArgola />
+            <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Gabarito</p>
+
             <div className="flex flex-col gap-2">
               {alternativas.map(([letra, texto]) => {
                 const ehCorreta = letra === flashcard.correct_answer_letter;
                 const ehSelecionada = letra === letraSelecionada;
                 const estilo = ehCorreta
-                  ? "border-correct bg-green-50 text-correct"
+                  ? "border-sage-500 bg-sage-50 text-sage-600"
                   : ehSelecionada
-                    ? "border-wrong bg-red-50 text-wrong"
-                    : "border-slate-200 text-slate-400 opacity-60";
+                    ? "border-wrong bg-garnet-50 text-wrong"
+                    : "border-sand-200 text-ink-faint opacity-70";
                 return (
-                  <div key={letra} className={`rounded-xl border-2 p-2 text-sm ${estilo}`}>
-                    <span className="mr-2 font-semibold">{letra})</span>
+                  <div key={letra} className={`rounded-md border p-2.5 text-sm ${estilo}`}>
+                    <span className="mr-2 font-serif italic">{letra}</span>
                     {texto}
                   </div>
                 );
               })}
             </div>
 
-            <div className="rounded-xl bg-slate-50 p-3">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400">Explicação</h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-slate-700">{flashcard.explanation}</p>
+            <div className="rounded-md bg-sand-100 p-3">
+              <h3 className="text-xs uppercase tracking-[0.15em] text-ink-muted">Explicação</h3>
+              <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink">{flashcard.explanation}</p>
             </div>
 
             {flashcard.tip && (
-              <div className="rounded-xl bg-amber-50 p-3">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-amber-500">Macete</h3>
-                <p className="mt-1 whitespace-pre-line text-sm text-amber-800">{flashcard.tip}</p>
+              <div className="rounded-md border border-gold-500/30 bg-gold-50 p-3">
+                <h3 className="text-xs uppercase tracking-[0.15em] text-gold-600">Macete</h3>
+                <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink">{flashcard.tip}</p>
               </div>
             )}
 
-            <p className="mt-auto text-center text-xs text-slate-400">← arraste o card para continuar →</p>
+            <p className="mt-auto text-center text-xs text-ink-faint">← arraste o card para continuar →</p>
           </div>
         </motion.div>
       </motion.div>
+    </div>
+  );
+}
+
+/** Dois furos de argola no topo do card — reforça a metáfora de ficha física. */
+function FuroDeArgola() {
+  return (
+    <div className="absolute left-1/2 top-3 flex -translate-x-1/2 gap-10">
+      <span className="h-2 w-2 rounded-full bg-paper shadow-[inset_0_1px_2px_rgba(33,28,24,0.25)]" />
+      <span className="h-2 w-2 rounded-full bg-paper shadow-[inset_0_1px_2px_rgba(33,28,24,0.25)]" />
     </div>
   );
 }

@@ -136,14 +136,14 @@ export default function PaginaImportacao() {
   }
 
   if (statusAcesso === "verificando") {
-    return <div className="p-8 text-center text-slate-500">Verificando acesso...</div>;
+    return <div className="p-8 text-center text-ink-muted">Verificando acesso...</div>;
   }
 
   if (statusAcesso === "negado") {
     return (
       <div className="mx-auto max-w-md p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-800">Acesso restrito</h1>
-        <p className="mt-2 text-slate-500">
+        <h1 className="font-serif text-xl italic text-ink">Acesso restrito</h1>
+        <p className="mt-2 text-ink-muted">
           Esta área é exclusiva para administradores. Faça login com uma conta autorizada.
         </p>
       </div>
@@ -153,8 +153,9 @@ export default function PaginaImportacao() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <header>
-        <h1 className="text-2xl font-bold text-slate-900">Importar flashcards</h1>
-        <p className="text-slate-500">Cole o texto bruto no padrão FLASHCARD / FRENTE / VERSO abaixo.</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-ink-faint">Curadoria</p>
+        <h1 className="font-serif text-2xl italic text-ink">Importar flashcards</h1>
+        <p className="text-sm text-ink-muted">Cole o texto bruto no padrão FLASHCARD / FRENTE / VERSO abaixo.</p>
       </header>
 
       <textarea
@@ -165,26 +166,26 @@ export default function PaginaImportacao() {
         }}
         placeholder={"FLASHCARD 1\nFRENTE\n1. Texto da pergunta\nA) ...\nB) ...\nVERSO\nResposta: A — ...\nExplicação:\n...\nMacete: ..."}
         rows={16}
-        className="w-full rounded-lg border border-slate-300 p-4 font-mono text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+        className="w-full rounded-lg border border-sand-300 bg-paper-raised p-4 font-mono text-sm text-ink shadow-sm focus:border-garnet-400 focus:outline-none focus:ring-1 focus:ring-garnet-400"
       />
 
       <button
         onClick={handleAnalisar}
         disabled={!textoBruto.trim()}
-        className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-lg bg-ink px-4 py-2 font-medium text-paper-raised hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Analisar texto
       </button>
 
       {analisado && (
-        <section className="space-y-4 rounded-lg border border-slate-200 p-4">
-          <p className="font-medium text-slate-700">
+        <section className="space-y-4 rounded-lg border border-sand-300 bg-paper-raised p-4">
+          <p className="font-medium text-ink">
             {flashcardsPreview.length} flashcard(s) reconhecido(s)
             {errosPreview.length > 0 && `, ${errosPreview.length} com erro`}.
           </p>
 
           {errosPreview.length > 0 && (
-            <ul className="space-y-2 rounded-md bg-red-50 p-3 text-sm text-red-700">
+            <ul className="space-y-2 rounded-md bg-garnet-50 p-3 text-sm text-wrong">
               {errosPreview.map((erro, i) => (
                 <li key={i}>
                   <strong>{erro.numeroOriginal ? `FLASHCARD ${erro.numeroOriginal}` : "Texto"}:</strong> {erro.motivo}
@@ -196,8 +197,8 @@ export default function PaginaImportacao() {
           {flashcardsPreview.length > 0 && (
             <ol className="max-h-80 space-y-3 overflow-y-auto text-sm">
               {flashcardsPreview.map((card) => (
-                <li key={card.numeroOriginal} className="rounded-md bg-slate-50 p-3">
-                  <p className="font-medium text-slate-800">
+                <li key={card.numeroOriginal} className="rounded-md bg-sand-100 p-3">
+                  <p className="font-medium text-ink">
                     {card.numeroOriginal}. {card.question}
                   </p>
                   <p className="mt-1 text-correct">
@@ -209,13 +210,13 @@ export default function PaginaImportacao() {
           )}
 
           {flashcardsPreview.length > 0 && (
-            <div className="flex flex-wrap items-end gap-3 border-t border-slate-200 pt-4">
+            <div className="flex flex-wrap items-end gap-3 border-t border-sand-200 pt-4">
               <div className="flex-1 min-w-[200px]">
-                <label className="mb-1 block text-sm font-medium text-slate-700">Módulo de destino</label>
+                <label className="mb-1 block text-sm font-medium text-ink">Módulo de destino</label>
                 <select
                   value={moduloSelecionado}
                   onChange={(e) => setModuloSelecionado(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 p-2"
+                  className="w-full rounded-lg border border-sand-300 bg-paper-raised p-2 text-ink"
                 >
                   <option value="">Selecione...</option>
                   {modulos.map((modulo) => (
@@ -229,12 +230,12 @@ export default function PaginaImportacao() {
 
               {moduloSelecionado === NOVO_MODULO_VALOR && (
                 <div className="flex-1 min-w-[200px]">
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Título do novo módulo</label>
+                  <label className="mb-1 block text-sm font-medium text-ink">Título do novo módulo</label>
                   <input
                     value={tituloNovoModulo}
                     onChange={(e) => setTituloNovoModulo(e.target.value)}
                     placeholder="Ex: Processos Metabólicos"
-                    className="w-full rounded-lg border border-slate-300 p-2"
+                    className="w-full rounded-lg border border-sand-300 bg-paper-raised p-2 text-ink"
                   />
                 </div>
               )}
@@ -242,7 +243,7 @@ export default function PaginaImportacao() {
               <button
                 onClick={handleSalvar}
                 disabled={salvando}
-                className="rounded-lg bg-brand-500 px-4 py-2 font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg bg-garnet-500 px-4 py-2 font-medium text-paper-raised hover:bg-garnet-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {salvando ? "Salvando..." : "Salvar no banco"}
               </button>

@@ -53,27 +53,32 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
   }
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-slate-50 p-4">
+    <div className="textura-papel flex min-h-screen flex-col gap-6 p-4">
       <header className="mx-auto flex w-full max-w-md items-center gap-3">
+        <Link href="/modules" className="text-sm text-ink-faint hover:text-garnet-500">
+          ← Módulos
+        </Link>
         <StreakBadge dias={streakDays} />
         <div className={`flex-1 ${pulsoXp ? "animate-pulse-xp" : ""}`}>
           <XPBar xp={xp} />
         </div>
       </header>
 
-      <p className="text-center text-sm font-medium text-slate-500">{moduloTitulo}</p>
+      <p className="text-center font-serif text-lg italic text-ink">{moduloTitulo}</p>
 
       <div className="flex flex-1 items-center justify-center">
         {!concluido ? (
           <Flashcard flashcard={cardAtual} onResponder={handleResponder} onProximo={handleProximo} />
         ) : (
-          <div className="mx-auto flex max-w-sm flex-col items-center gap-4 rounded-2xl bg-white p-8 text-center shadow-xl">
-            <span className="text-4xl">🎉</span>
-            <h2 className="text-xl font-bold text-slate-800">Módulo concluído!</h2>
-            <p className="text-slate-500">Você revisou {flashcards.length} flashcards de {moduloTitulo}.</p>
+          <div className="mx-auto flex max-w-sm flex-col items-center gap-3 rounded-lg border border-sand-300 bg-paper-raised p-8 text-center shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)]">
+            <span className="text-3xl">🔖</span>
+            <h2 className="font-serif text-2xl italic text-ink">Módulo concluído</h2>
+            <p className="text-sm text-ink-muted">
+              Você revisou {flashcards.length} ficha{flashcards.length === 1 ? "" : "s"} de {moduloTitulo}.
+            </p>
             <Link
               href="/modules"
-              className="rounded-lg bg-brand-500 px-4 py-2 font-medium text-white hover:bg-brand-600"
+              className="mt-2 rounded-md bg-garnet-500 px-4 py-2 text-sm font-medium text-paper-raised hover:bg-garnet-600"
             >
               Voltar aos módulos
             </Link>
@@ -82,8 +87,8 @@ export default function EstudoDeck({ moduloTitulo, flashcards, perfilInicial }: 
       </div>
 
       {!concluido && (
-        <p className="text-center text-sm text-slate-400">
-          {indiceAtual + 1} / {flashcards.length}
+        <p className="text-center text-xs uppercase tracking-[0.15em] text-ink-faint">
+          {indiceAtual + 1} de {flashcards.length}
         </p>
       )}
     </div>

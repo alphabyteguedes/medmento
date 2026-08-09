@@ -8,5 +8,18 @@ body {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-paper font-sans text-ink antialiased;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-serif;
+}
+
+/* Textura sutil de papel — um ruído bem discreto para tirar a chapadeza
+   digital do fundo marfim, sem pesar a página. */
+.textura-papel {
+  background-image: radial-gradient(circle at 1px 1px, rgba(33, 28, 24, 0.055) 1px, transparent 0);
+  background-size: 22px 22px;
 }

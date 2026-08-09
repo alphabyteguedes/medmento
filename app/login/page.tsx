@@ -15,10 +15,17 @@ export default function PaginaLogin() {
     setEntrando(true);
     setErro(null);
 
+    // Usa um domínio canônico fixo quando definido, em vez de window.location.origin:
+    // a Vercel expõe o mesmo deploy em vários domínios (medmento.vercel.app,
+    // medmento-<time>.vercel.app etc.) e o Supabase só aceita redirect para URLs
+    // cadastradas — depender do domínio que a pessoa digitou causava fallback
+    // silencioso para o Site URL (localhost) quando não batia com a lista.
+    const origem = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${origem}/auth/callback`,
       },
     });
 
@@ -31,30 +38,50 @@ export default function PaginaLogin() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-8 p-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-brand-600">Medmento</h1>
-        <p className="text-slate-500">Flashcards gamificados para medicina</p>
+    <div className="textura-papel flex min-h-screen flex-col items-center justify-center gap-12 p-6">
+      <div className="flex flex-col items-center gap-6">
+        {/* Baralho de fichas ilustrado: três cartões desalinhados, remete ao
+            objeto físico (flashcard) em vez de um ícone genérico de app. */}
+        <div className="relative h-20 w-24">
+          <div className="absolute inset-0 -rotate-6 rounded-md border border-sand-300 bg-paper-raised shadow-sm" />
+          <div className="absolute inset-0 rotate-3 rounded-md border border-sand-300 bg-paper-raised shadow-sm" />
+          <div className="absolute inset-0 flex items-center justify-center rounded-md border border-garnet-500 bg-paper-raised shadow-md">
+            <span className="font-serif text-2xl italic text-garnet-500">Md</span>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <h1 className="font-serif text-4xl italic text-ink">Medmento</h1>
+          <p className="mt-2 text-sm uppercase tracking-[0.2em] text-ink-muted">
+            Fichas de estudo para medicina
+          </p>
+        </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleLoginGoogle}
-        disabled={entrando}
-        className="flex items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white p-3 font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
-      >
-        <IconeGoogle />
-        {entrando ? "Redirecionando..." : "Entrar com Google"}
-      </button>
+      <div className="flex w-full max-w-xs flex-col gap-4">
+        <button
+          type="button"
+          onClick={handleLoginGoogle}
+          disabled={entrando}
+          className="flex items-center justify-center gap-3 rounded-lg border border-ink/15 bg-paper-raised p-3.5 font-medium text-ink shadow-sm transition-colors hover:border-ink/30 hover:bg-sand-100/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <IconeGoogle />
+          {entrando ? "Redirecionando..." : "Entrar com Google"}
+        </button>
 
-      {erro && <p className="text-center text-sm text-wrong">{erro}</p>}
+        <p className="text-center text-xs text-ink-faint">
+          Sua conta Google é a sua identidade aqui — sem senhas para lembrar.
+        </p>
+
+        {erro && <p className="text-center text-sm text-wrong">{erro}</p>}
+      </div>
     </div>
   );
 }
 
 function IconeGoogle() {
   return (
-    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
       <path
         fill="#FFC107"
         d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12
