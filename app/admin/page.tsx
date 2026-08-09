@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { alternarAdmin } from "./actions";
+import { alternarAdmin, excluirModulo } from "./actions";
+import FormularioComConfirmacao from "./FormularioComConfirmacao";
 
 const DIAS_JANELA_ATIVO = 7;
 
@@ -10,14 +11,21 @@ export default async function PainelAdmin() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: perfis }, { count: totalModulos }, { count: totalFlashcards }] = await Promise.all([
+  const [{ data: perfis }, { data: modulos }, { data: flashcardsModuleIds }] = await Promise.all([
     supabase.from("user_profiles").select("*").order("created_at", { ascending: false }),
-    supabase.from("modules").select("*", { count: "exact", head: true }),
-    supabase.from("flashcards").select("*", { count: "exact", head: true }),
+    supabase.from("modules").select("*").order("created_at", { ascending: false }),
+    supabase.from("flashcards").select("module_id"),
   ]);
 
   const listaPerfis = perfis ?? [];
+  const listaModulos = modulos ?? [];
   const totalUsuarios = listaPerfis.length;
+  const totalFlashcards = flashcardsModuleIds?.length ?? 0;
+
+  const contagemPorModulo = new Map<string, number>();
+  (flashcardsModuleIds ?? []).forEach((f) => {
+    contagemPorModulo.set(f.module_id, (contagemPorModulo.get(f.module_id) ?? 0) + 1);
+  });
 
   const dataCorte = new Date(Date.now() - DIAS_JANELA_ATIVO * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const usuariosAtivos = listaPerfis.filter((p) => p.last_study_date && p.last_study_date >= dataCorte).length;
@@ -35,10 +43,45 @@ export default async function PainelAdmin() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <CartaoMetrica rotulo="Usuários" valor={totalUsuarios} />
         <CartaoMetrica rotulo={`Ativos (${DIAS_JANELA_ATIVO}d)`} valor={usuariosAtivos} />
-        <CartaoMetrica rotulo="Módulos" valor={totalModulos ?? 0} />
-        <CartaoMetrica rotulo="Flashcards" valor={totalFlashcards ?? 0} />
+        <CartaoMetrica rotulo="Módulos" valor={listaModulos.length} />
+        <CartaoMetrica rotulo="Flashcards" valor={totalFlashcards} />
         <CartaoMetrica rotulo="XP distribuído" valor={xpTotal} />
         <CartaoMetrica rotulo="Streak médio" valor={streakMedio} />
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-xs uppercase tracking-[0.2em] text-ink-faint">Módulos</h2>
+
+        {listaModulos.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-sand-300 p-6 text-center text-ink-muted">
+            Nenhum módulo cadastrado ainda.
+          </p>
+        ) : (
+          <ul className="divide-y divide-sand-200 overflow-hidden rounded-lg border border-sand-300 bg-paper-raised">
+            {listaModulos.map((modulo) => (
+              <li key={modulo.id} className="flex items-center justify-between gap-4 p-4">
+                <div>
+                  <p className="font-medium text-ink">{modulo.title}</p>
+                  <p className="text-xs text-ink-faint">
+                    {contagemPorModulo.get(modulo.id) ?? 0} flashcard(s)
+                  </p>
+                </div>
+                <FormularioComConfirmacao
+                  action={excluirModulo}
+                  mensagemConfirmacao={`Excluir "${modulo.title}" e todos os seus flashcards? Essa ação não pode ser desfeita.`}
+                >
+                  <input type="hidden" name="moduleId" value={modulo.id} />
+                  <button
+                    type="submit"
+                    className="shrink-0 text-xs text-wrong underline decoration-garnet-100 underline-offset-4 hover:text-garnet-600"
+                  >
+                    excluir
+                  </button>
+                </FormularioComConfirmacao>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div>

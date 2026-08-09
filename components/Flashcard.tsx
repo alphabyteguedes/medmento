@@ -4,7 +4,10 @@
 // PASSO 4 — Componente visual do Flashcard (Framer Motion)
 //
 // - Estado `letraSelecionada` controla se o card está "virado" (flipped).
-// - Ao selecionar uma alternativa, o card gira em 3D (rotateY) revelando o verso.
+// - Ao selecionar uma alternativa, o verso substitui a frente com um "flip"
+//   2D (scaleX) — DELIBERADAMENTE não usamos perspective/rotateY 3D: em
+//   celular médio, transform 3D + drag simultâneos pesam na GPU e o gesto
+//   fica travado. scaleX é uma única transform 2D, muito mais barata.
 // - Depois de virado, o card pode ser arrastado (drag="x") para os lados;
 //   ao ultrapassar o limite de arraste, ele "voa" para fora da tela e o
 //   componente pai é avisado via `onProximo` para mostrar a próxima pergunta.
@@ -15,7 +18,7 @@
 // =============================================================================
 
 import { useState } from "react";
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Flashcard as FlashcardType, Letra } from "@/lib/types";
 
 const LIMITE_DISTANCIA_SWIPE = 100; // px arrastados para considerar um swipe
@@ -64,77 +67,80 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
   ) as [Letra, string][];
 
   return (
-    <div style={{ perspective: 1200 }} className="h-full w-full select-none">
-      <motion.div
-        style={{ x, rotate, touchAction: "pan-y", willChange: "transform" }}
-        drag={virado ? "x" : false}
-        dragElastic={0.6}
-        dragMomentum={false}
-        onDragEnd={handleDragEnd}
-        animate={
-          direcaoSaida
-            ? { x: direcaoSaida === "direita" ? 700 : -700, opacity: 0 }
-            : { x: 0, opacity: 1 }
-        }
-        transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
-        onAnimationComplete={() => {
-          if (direcaoSaida) onProximo();
-        }}
-        className={`relative h-full w-full ${virado ? "cursor-grab active:cursor-grabbing" : ""}`}
-      >
-        {/* Carimbos estilo ficheiro, só fazem sentido depois que o card foi virado */}
-        {virado && (
-          <>
-            <motion.span
-              style={{ opacity: carimboEsquerda }}
-              className="pointer-events-none absolute left-5 top-5 z-10 -rotate-12 rounded border-2 border-ink-faint px-2 py-0.5 font-serif text-sm italic text-ink-faint"
-            >
-              anterior
-            </motion.span>
-            <motion.span
-              style={{ opacity: carimboDireita }}
-              className="pointer-events-none absolute right-5 top-5 z-10 rotate-12 rounded border-2 border-garnet-500 px-2 py-0.5 font-serif text-sm italic text-garnet-500"
-            >
-              próxima
-            </motion.span>
-          </>
-        )}
+    <motion.div
+      style={{ x, rotate, touchAction: "pan-y", willChange: "transform" }}
+      drag={virado ? "x" : false}
+      dragElastic={0.6}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      animate={
+        direcaoSaida ? { x: direcaoSaida === "direita" ? 700 : -700, opacity: 0 } : { x: 0, opacity: 1 }
+      }
+      transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.6 }}
+      onAnimationComplete={() => {
+        if (direcaoSaida) onProximo();
+      }}
+      className={`relative h-full w-full select-none ${virado ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
+      {/* Carimbos estilo ficheiro, só fazem sentido depois que o card foi virado */}
+      {virado && (
+        <>
+          <motion.span
+            style={{ opacity: carimboEsquerda }}
+            className="pointer-events-none absolute left-5 top-5 z-10 -rotate-12 rounded border-2 border-ink-faint px-2 py-0.5 font-serif text-sm italic text-ink-faint"
+          >
+            anterior
+          </motion.span>
+          <motion.span
+            style={{ opacity: carimboDireita }}
+            className="pointer-events-none absolute right-5 top-5 z-10 rotate-12 rounded border-2 border-garnet-500 px-2 py-0.5 font-serif text-sm italic text-garnet-500"
+          >
+            próxima
+          </motion.span>
+        </>
+      )}
 
-        <motion.div
-          animate={{ rotateY: virado ? 180 : 0 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-          style={{ transformStyle: "preserve-3d" }}
-          className="relative h-full w-full"
-        >
-          {/* ---------- FRENTE ---------- */}
-          <div
-            style={{ backfaceVisibility: "hidden" }}
-            className="absolute inset-0 flex flex-col gap-3 rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
+      <AnimatePresence mode="wait" initial={false}>
+        {!virado ? (
+          <motion.div
+            key="frente"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            exit={{ scaleX: 0 }}
+            transition={{ duration: 0.22, ease: "easeIn" }}
+            style={{ willChange: "transform" }}
+            className="flex h-full w-full flex-col gap-3 rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:p-6"
           >
             <FuroDeArgola />
-            <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Pergunta</p>
-            <p className="flex-1 overflow-y-auto font-serif text-lg leading-snug text-ink sm:text-xl">
-              {flashcard.question}
-            </p>
-            <div className="flex flex-col gap-2">
-              {alternativas.map(([letra, texto]) => (
-                <button
-                  key={letra}
-                  type="button"
-                  onClick={() => selecionarAlternativa(letra)}
-                  className="w-full rounded-md border border-sand-300 p-2.5 text-left text-sm text-ink transition-colors hover:border-garnet-400 hover:bg-garnet-50 sm:p-3 sm:text-base"
-                >
-                  <span className="mr-2 font-serif italic text-ink-muted">{letra}</span>
-                  {texto}
-                </button>
-              ))}
+            <div className="flex flex-1 flex-col justify-center gap-5 overflow-y-auto">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Pergunta</p>
+                <p className="mt-2 font-serif text-lg leading-snug text-ink sm:text-xl">{flashcard.question}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {alternativas.map(([letra, texto]) => (
+                  <button
+                    key={letra}
+                    type="button"
+                    onClick={() => selecionarAlternativa(letra)}
+                    className="w-full rounded-md border border-sand-300 p-2.5 text-left text-sm text-ink transition-colors hover:border-garnet-400 hover:bg-garnet-50 sm:p-3 sm:text-base"
+                  >
+                    <span className="mr-2 font-serif italic text-ink-muted">{letra}</span>
+                    {texto}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* ---------- VERSO ---------- */}
-          <div
-            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
-            className="absolute inset-0 flex flex-col gap-3 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
+          </motion.div>
+        ) : (
+          <motion.div
+            key="verso"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            exit={{ scaleX: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            style={{ willChange: "transform" }}
+            className="flex h-full w-full flex-col gap-3 overflow-y-auto rounded-lg border border-sand-300 bg-paper-raised p-5 pt-8 shadow-[0_10px_30px_-12px_rgba(33,28,24,0.25)] sm:gap-4 sm:p-6"
           >
             <FuroDeArgola />
             <p className="text-xs uppercase tracking-[0.2em] text-garnet-500">Gabarito</p>
@@ -170,10 +176,10 @@ export default function Flashcard({ flashcard, onResponder, onProximo }: Flashca
             )}
 
             <p className="mt-auto pt-1 text-center text-xs text-ink-faint">← arraste o card para continuar →</p>
-          </div>
-        </motion.div>
-      </motion.div>
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

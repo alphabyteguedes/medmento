@@ -5,6 +5,11 @@
 html,
 body {
   height: 100%;
+  /* Evita o "bounce" de overscroll do Safari/Chrome mobile competir com o
+     gesto de arraste horizontal do flashcard (a página tenta rolar/voltar
+     junto com o swipe do card, deixando o gesto travado). Não afeta a
+     rolagem normal do conteúdo, só o efeito de "esticar" além da borda. */
+  overscroll-behavior: none;
 }
 
 body {

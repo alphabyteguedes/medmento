@@ -19,3 +19,21 @@ export async function alternarAdmin(formData: FormData) {
 
   revalidatePath("/admin");
 }
+
+// A policy "modules: escrita apenas para admin" garante no banco que só
+// admins conseguem excluir — e o ON DELETE CASCADE em flashcards.module_id
+// já apaga as fichas do módulo junto, sem precisar de um segundo passo aqui.
+export async function excluirModulo(formData: FormData) {
+  const moduleId = formData.get("moduleId");
+
+  if (typeof moduleId !== "string" || !moduleId) {
+    throw new Error("moduleId inválido.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("modules").delete().eq("id", moduleId);
+  if (error) throw error;
+
+  revalidatePath("/admin");
+  revalidatePath("/modules");
+}
