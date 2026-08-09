@@ -1,6 +1,10 @@
 -- =============================================================================
 -- MEDMENTO — Script de criação do banco de dados (Supabase / PostgreSQL)
 -- Rode este script inteiro no SQL Editor do painel do Supabase.
+--
+-- Se o seu projeto já existe e foi criado antes desta versão do script, não
+-- rode este arquivo de novo — use as migrações incrementais em
+-- supabase/migrations/ (ex: 002_admin_panel.sql) para não recriar o que já existe.
 -- =============================================================================
 
 -- Extensão necessária para gen_random_uuid()
@@ -38,10 +42,13 @@ create index if not exists flashcards_module_id_idx on public.flashcards (module
 -- -----------------------------------------------------------------------------
 -- TABELA: user_profiles
 -- Estende auth.users com dados de gamificação. is_admin controla quem pode
--- gerenciar módulos/flashcards (usado nas policies abaixo).
+-- gerenciar módulos/flashcards e acessar o painel de administração.
+-- email fica duplicado aqui (fora de auth.users, que é schema protegido) para
+-- o painel poder listar usuários direto pelo Supabase client no frontend.
 -- -----------------------------------------------------------------------------
 create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  email text,
   xp int not null default 0,
   streak_days int not null default 0,
   last_study_date date,
@@ -60,9 +67,9 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.user_profiles (id)
-  values (new.id)
-  on conflict (id) do nothing;
+  insert into public.user_profiles (id, email)
+  values (new.id, new.email)
+  on conflict (id) do update set email = excluded.email;
   return new;
 end;
 $$;
@@ -71,6 +78,24 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- -----------------------------------------------------------------------------
+-- FUNÇÃO: is_admin()
+-- Helper usado nas policies abaixo. Por ser SECURITY DEFINER, a consulta
+-- interna a user_profiles ignora as próprias policies da tabela — isso evita
+-- "infinite recursion detected in policy for relation user_profiles", que
+-- aconteceria se uma policy de user_profiles fizesse subquery direto na
+-- própria tabela sob RLS.
+-- -----------------------------------------------------------------------------
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select coalesce((select is_admin from public.user_profiles where id = auth.uid()), false);
+$$;
 
 -- -----------------------------------------------------------------------------
 -- ROW LEVEL SECURITY
@@ -90,21 +115,21 @@ create policy "flashcards: leitura para autenticados"
   to authenticated
   using (true);
 
--- Somente administradores (user_profiles.is_admin = true) podem criar/editar/excluir
--- módulos e flashcards — usado pelo importador em /admin/import.
+-- Somente administradores podem criar/editar/excluir módulos e flashcards
+-- — usado pelo importador em /admin/import.
 create policy "modules: escrita apenas para admin"
   on public.modules for all
   to authenticated
-  using (exists (select 1 from public.user_profiles up where up.id = auth.uid() and up.is_admin = true))
-  with check (exists (select 1 from public.user_profiles up where up.id = auth.uid() and up.is_admin = true));
+  using (public.is_admin())
+  with check (public.is_admin());
 
 create policy "flashcards: escrita apenas para admin"
   on public.flashcards for all
   to authenticated
-  using (exists (select 1 from public.user_profiles up where up.id = auth.uid() and up.is_admin = true))
-  with check (exists (select 1 from public.user_profiles up where up.id = auth.uid() and up.is_admin = true));
+  using (public.is_admin())
+  with check (public.is_admin());
 
--- Cada usuário só enxerga e altera o PRÓPRIO perfil (XP, streak etc.).
+-- Cada usuário enxerga e altera o PRÓPRIO perfil (XP, streak etc.)...
 create policy "user_profiles: usuário vê o próprio perfil"
   on public.user_profiles for select
   to authenticated
@@ -116,9 +141,23 @@ create policy "user_profiles: usuário atualiza o próprio perfil"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
+-- ...e administradores enxergam e alteram o perfil de QUALQUER usuário —
+-- necessário para o painel em /admin listar e promover/remover admins.
+create policy "user_profiles: admin vê todos os perfis"
+  on public.user_profiles for select
+  to authenticated
+  using (public.is_admin());
+
+create policy "user_profiles: admin atualiza todos os perfis"
+  on public.user_profiles for update
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
 -- -----------------------------------------------------------------------------
--- Para promover o primeiro usuário admin (rode manualmente, trocando o e-mail):
+-- Para promover o primeiro usuário admin (rode manualmente, trocando o e-mail;
+-- a pessoa precisa ter feito login pelo menos uma vez antes, para o trigger
+-- acima já ter criado a linha em user_profiles):
 --
--- update public.user_profiles set is_admin = true
--- where id = (select id from auth.users where email = 'seu-email@exemplo.com');
+-- update public.user_profiles set is_admin = true where email = 'seu-email@exemplo.com';
 -- -----------------------------------------------------------------------------

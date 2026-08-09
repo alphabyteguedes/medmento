@@ -30,6 +30,7 @@ export interface Flashcard {
 
 export interface PerfilUsuario {
   id: string;
+  email: string | null;
   xp: number;
   streak_days: number;
   last_study_date: string | null;

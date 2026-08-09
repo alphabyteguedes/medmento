@@ -3,12 +3,15 @@
 // =============================================================================
 // PASSO 3 — Página de importação (/admin/import)
 //
-// Fluxo: o curador cola o texto bruto -> clica em "Analisar" (roda o parser
-// localmente, sem tocar o banco, para revisão) -> escolhe o módulo de destino
-// -> clica em "Salvar" (grava os flashcards no Supabase).
+// Fluxo: o curador cola o texto bruto (ou sobe um .txt já no padrão) -> clica
+// em "Analisar" (roda o parser localmente, sem tocar o banco, para revisão)
+// -> escolhe o módulo de destino -> clica em "Salvar" (grava no Supabase).
+//
+// O controle de acesso (só admin) é feito em app/admin/layout.tsx, então esta
+// página assume que quem chegou aqui já foi autorizado.
 // =============================================================================
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Modulo } from "@/lib/types";
 import {
@@ -20,12 +23,10 @@ import {
 
 const NOVO_MODULO_VALOR = "__novo__";
 
-type StatusAcesso = "verificando" | "autorizado" | "negado";
-
 export default function PaginaImportacao() {
   const supabase = createClient();
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
 
-  const [statusAcesso, setStatusAcesso] = useState<StatusAcesso>("verificando");
   const [modulos, setModulos] = useState<Modulo[]>([]);
   const [moduloSelecionado, setModuloSelecionado] = useState<string>("");
   const [tituloNovoModulo, setTituloNovoModulo] = useState("");
@@ -38,40 +39,12 @@ export default function PaginaImportacao() {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: "sucesso" | "erro"; texto: string } | null>(null);
 
-  // Verifica se o usuário logado é admin e carrega os módulos existentes.
   useEffect(() => {
-    async function inicializar() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setStatusAcesso("negado");
-        return;
-      }
-
-      const { data: perfil } = await supabase
-        .from("user_profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-
-      if (!perfil?.is_admin) {
-        setStatusAcesso("negado");
-        return;
-      }
-
-      setStatusAcesso("autorizado");
-
-      const { data: modulosData } = await supabase
-        .from("modules")
-        .select("*")
-        .order("title", { ascending: true });
-
-      setModulos(modulosData ?? []);
-    }
-
-    inicializar();
+    supabase
+      .from("modules")
+      .select("*")
+      .order("title", { ascending: true })
+      .then(({ data }) => setModulos(data ?? []));
   }, [supabase]);
 
   function handleAnalisar() {
@@ -80,6 +53,23 @@ export default function PaginaImportacao() {
     setErrosPreview(resultado.erros);
     setAnalisado(true);
     setMensagem(null);
+  }
+
+  async function handleArquivoSelecionado(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+
+    if (!arquivo.name.toLowerCase().endsWith(".txt")) {
+      setMensagem({ tipo: "erro", texto: "Envie um arquivo .txt no padrão FLASHCARD/FRENTE/VERSO." });
+      e.target.value = "";
+      return;
+    }
+
+    const conteudo = await arquivo.text();
+    setTextoBruto(conteudo);
+    setAnalisado(false);
+    setMensagem(null);
+    e.target.value = ""; // permite selecionar o mesmo arquivo de novo depois
   }
 
   async function handleSalvar() {
@@ -135,28 +125,26 @@ export default function PaginaImportacao() {
     }
   }
 
-  if (statusAcesso === "verificando") {
-    return <div className="p-8 text-center text-ink-muted">Verificando acesso...</div>;
-  }
-
-  if (statusAcesso === "negado") {
-    return (
-      <div className="mx-auto max-w-md p-8 text-center">
-        <h1 className="font-serif text-xl italic text-ink">Acesso restrito</h1>
-        <p className="mt-2 text-ink-muted">
-          Esta área é exclusiva para administradores. Faça login com uma conta autorizada.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="space-y-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-ink-faint">Curadoria</p>
         <h1 className="font-serif text-2xl italic text-ink">Importar flashcards</h1>
-        <p className="text-sm text-ink-muted">Cole o texto bruto no padrão FLASHCARD / FRENTE / VERSO abaixo.</p>
+        <p className="text-sm text-ink-muted">
+          Cole o texto bruto no padrão FLASHCARD / FRENTE / VERSO abaixo, ou suba um arquivo .txt.
+        </p>
       </header>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => inputArquivoRef.current?.click()}
+          className="rounded-lg border border-sand-300 bg-paper-raised px-3 py-1.5 text-sm font-medium text-ink hover:border-garnet-400"
+        >
+          Subir arquivo .txt
+        </button>
+        <input ref={inputArquivoRef} type="file" accept=".txt" onChange={handleArquivoSelecionado} className="hidden" />
+      </div>
 
       <textarea
         value={textoBruto}
