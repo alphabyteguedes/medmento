@@ -11,7 +11,13 @@ self.addEventListener("install", () => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      // Limpa qualquer cache órfão deixado pelo service worker antigo (next-pwa/workbox).
+      caches.keys().then((chaves) => Promise.all(chaves.map((chave) => caches.delete(chave)))),
+      self.clients.claim(),
+    ])
+  );
 });
 
 self.addEventListener("fetch", () => {
