@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import StreakBadge from "@/components/StreakBadge";
 import XPBar from "@/components/XPBar";
 import BotaoLogout from "@/components/BotaoLogout";
+import Avatar from "@/components/Avatar";
 
 export default async function PaginaModulos() {
   const supabase = await createClient();
@@ -18,15 +19,25 @@ export default async function PaginaModulos() {
     supabase.from("user_profiles").select("*").eq("id", user.id).single(),
   ]);
 
+  const primeiroNome = (perfil?.full_name ?? perfil?.email ?? "").split(" ")[0] || null;
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-sand-200 bg-paper-raised">
-        <div className="mx-auto flex max-w-xl items-center gap-4 px-6 py-4">
-          <StreakBadge dias={perfil?.streak_days ?? 0} />
-          <div className="flex-1">
-            <XPBar xp={perfil?.xp ?? 0} />
+        <div className="mx-auto flex max-w-xl flex-col gap-3 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Avatar nome={perfil?.full_name ?? perfil?.email ?? null} avatarUrl={perfil?.avatar_url ?? null} />
+            <p className="flex-1 truncate text-sm text-ink">
+              {primeiroNome ? <>Olá, <span className="font-medium">{primeiroNome}</span></> : "Olá"}
+            </p>
+            <BotaoLogout />
           </div>
-          <BotaoLogout />
+          <div className="flex items-center gap-3">
+            <StreakBadge dias={perfil?.streak_days ?? 0} />
+            <div className="flex-1">
+              <XPBar xp={perfil?.xp ?? 0} />
+            </div>
+          </div>
         </div>
       </header>
 
@@ -63,7 +74,7 @@ export default async function PaginaModulos() {
 
         {perfil?.is_admin && (
           <Link
-            href="/admin/import"
+            href="/admin"
             className="block text-center text-sm text-ink-muted underline decoration-sand-300 underline-offset-4 hover:text-garnet-500"
           >
             Área do administrador

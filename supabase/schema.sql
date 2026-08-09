@@ -4,7 +4,8 @@
 --
 -- Se o seu projeto já existe e foi criado antes desta versão do script, não
 -- rode este arquivo de novo — use as migrações incrementais em
--- supabase/migrations/ (ex: 002_admin_panel.sql) para não recriar o que já existe.
+-- supabase/migrations/ (ex: 002_admin_panel.sql, 004_identidade_e_bloqueio.sql)
+-- para não recriar o que já existe.
 -- =============================================================================
 
 -- Extensão necessária para gen_random_uuid()
@@ -41,25 +42,29 @@ create index if not exists flashcards_module_id_idx on public.flashcards (module
 
 -- -----------------------------------------------------------------------------
 -- TABELA: user_profiles
--- Estende auth.users com dados de gamificação. is_admin controla quem pode
--- gerenciar módulos/flashcards e acessar o painel de administração.
--- email fica duplicado aqui (fora de auth.users, que é schema protegido) para
--- o painel poder listar usuários direto pelo Supabase client no frontend.
+-- Estende auth.users com dados de gamificação e identidade. is_admin controla
+-- quem gerencia módulos/flashcards e acessa o painel; is_blocked revoga o
+-- acesso ao conteúdo sem precisar remover a conta. email/full_name/avatar_url
+-- ficam duplicados aqui (fora de auth.users, que é schema protegido) para o
+-- painel e a UI poderem exibi-los direto pelo Supabase client no frontend.
 -- -----------------------------------------------------------------------------
 create table if not exists public.user_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
+  full_name text,
+  avatar_url text,
   xp int not null default 0,
   streak_days int not null default 0,
   last_study_date date,
   is_admin boolean not null default false,
+  is_blocked boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 -- -----------------------------------------------------------------------------
 -- TRIGGER: cria automaticamente uma linha em user_profiles sempre que um novo
 -- usuário se cadastra via Supabase Auth. Evita ter que criar o perfil "na mão"
--- no frontend após o signup.
+-- no frontend após o signup. Nome e foto vêm do Google.
 -- -----------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger
@@ -67,9 +72,17 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.user_profiles (id, email)
-  values (new.id, new.email)
-  on conflict (id) do update set email = excluded.email;
+  insert into public.user_profiles (id, email, full_name, avatar_url)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
+    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture')
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(excluded.full_name, public.user_profiles.full_name),
+    avatar_url = coalesce(excluded.avatar_url, public.user_profiles.avatar_url);
   return new;
 end;
 $$;
@@ -80,8 +93,8 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- -----------------------------------------------------------------------------
--- FUNÇÃO: is_admin()
--- Helper usado nas policies abaixo. Por ser SECURITY DEFINER, a consulta
+-- FUNÇÕES: is_admin() / is_blocked()
+-- Helpers usados nas policies abaixo. Por serem SECURITY DEFINER, a consulta
 -- interna a user_profiles ignora as próprias policies da tabela — isso evita
 -- "infinite recursion detected in policy for relation user_profiles", que
 -- aconteceria se uma policy de user_profiles fizesse subquery direto na
@@ -97,6 +110,16 @@ as $$
   select coalesce((select is_admin from public.user_profiles where id = auth.uid()), false);
 $$;
 
+create or replace function public.is_blocked()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select coalesce((select is_blocked from public.user_profiles where id = auth.uid()), false);
+$$;
+
 -- -----------------------------------------------------------------------------
 -- ROW LEVEL SECURITY
 -- -----------------------------------------------------------------------------
@@ -104,16 +127,18 @@ alter table public.modules enable row level security;
 alter table public.flashcards enable row level security;
 alter table public.user_profiles enable row level security;
 
--- Qualquer usuário autenticado pode LER módulos e flashcards (é o conteúdo de estudo).
+-- Usuário autenticado e NÃO bloqueado pode LER módulos e flashcards (é o
+-- conteúdo de estudo) — usuário bloqueado deixa de enxergar tudo, mesmo que
+-- contorne o middleware (defesa em profundidade).
 create policy "modules: leitura para autenticados"
   on public.modules for select
   to authenticated
-  using (true);
+  using (not public.is_blocked());
 
 create policy "flashcards: leitura para autenticados"
   on public.flashcards for select
   to authenticated
-  using (true);
+  using (not public.is_blocked());
 
 -- Somente administradores podem criar/editar/excluir módulos e flashcards
 -- — usado pelo importador em /admin/import.
@@ -142,7 +167,8 @@ create policy "user_profiles: usuário atualiza o próprio perfil"
   with check (auth.uid() = id);
 
 -- ...e administradores enxergam e alteram o perfil de QUALQUER usuário —
--- necessário para o painel em /admin listar e promover/remover admins.
+-- necessário para o painel em /admin listar, promover/remover admins e
+-- bloquear/desbloquear acesso.
 create policy "user_profiles: admin vê todos os perfis"
   on public.user_profiles for select
   to authenticated

@@ -37,3 +37,22 @@ export async function excluirModulo(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/modules");
 }
+
+// Bloqueia/desbloqueia o acesso de um usuário ao conteúdo do app (não afeta
+// o login em si — ele continua entrando, mas o middleware e a RLS de
+// modules/flashcards passam a barrar o acesso). A página impede bloquear a
+// si mesmo (ver app/admin/page.tsx), então não precisa validar isso aqui.
+export async function alternarBloqueio(formData: FormData) {
+  const userId = formData.get("userId");
+  const novoValor = formData.get("novoValor") === "true";
+
+  if (typeof userId !== "string" || !userId) {
+    throw new Error("userId inválido.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("user_profiles").update({ is_blocked: novoValor }).eq("id", userId);
+  if (error) throw error;
+
+  revalidatePath("/admin");
+}

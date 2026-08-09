@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { alternarAdmin, excluirModulo } from "./actions";
+import { alternarAdmin, alternarBloqueio, excluirModulo } from "./actions";
 import FormularioComConfirmacao from "./FormularioComConfirmacao";
+import Avatar from "@/components/Avatar";
 
 const DIAS_JANELA_ATIVO = 7;
 
@@ -96,44 +97,77 @@ export default async function PainelAdmin() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-sand-200 text-xs uppercase tracking-wide text-ink-faint">
-                  <th className="px-4 py-3 font-medium">E-mail</th>
+                  <th className="px-4 py-3 font-medium">Usuário</th>
                   <th className="px-4 py-3 font-medium">XP</th>
                   <th className="px-4 py-3 font-medium">Streak</th>
                   <th className="px-4 py-3 font-medium">Último estudo</th>
-                  <th className="px-4 py-3 font-medium">Admin</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {listaPerfis.map((perfil) => (
                   <tr key={perfil.id} className="border-b border-sand-100 last:border-0">
-                    <td className="px-4 py-3 text-ink">{perfil.email ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar nome={perfil.full_name ?? perfil.email} avatarUrl={perfil.avatar_url} tamanho="sm" />
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-ink">{perfil.full_name ?? "Sem nome"}</p>
+                          <p className="truncate text-xs text-ink-faint">{perfil.email ?? "—"}</p>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-ink-muted">{perfil.xp}</td>
                     <td className="px-4 py-3 text-ink-muted">{perfil.streak_days}</td>
                     <td className="px-4 py-3 text-ink-muted">{perfil.last_study_date ?? "nunca"}</td>
                     <td className="px-4 py-3">
-                      {perfil.is_admin ? (
-                        <span className="rounded-full bg-garnet-50 px-2 py-0.5 text-xs font-medium text-garnet-500">
-                          admin
-                        </span>
-                      ) : (
-                        <span className="text-ink-faint">—</span>
-                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {perfil.is_admin && (
+                          <span className="rounded-full bg-garnet-50 px-2 py-0.5 text-xs font-medium text-garnet-500">
+                            admin
+                          </span>
+                        )}
+                        {perfil.is_blocked && (
+                          <span className="rounded-full bg-sand-200 px-2 py-0.5 text-xs font-medium text-ink-muted">
+                            bloqueado
+                          </span>
+                        )}
+                        {!perfil.is_admin && !perfil.is_blocked && <span className="text-ink-faint">—</span>}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {perfil.id === user?.id ? (
                         <span className="text-xs text-ink-faint">você</span>
                       ) : (
-                        <form action={alternarAdmin}>
-                          <input type="hidden" name="userId" value={perfil.id} />
-                          <input type="hidden" name="novoValor" value={(!perfil.is_admin).toString()} />
-                          <button
-                            type="submit"
-                            className="text-xs text-ink-muted underline decoration-sand-300 underline-offset-4 hover:text-garnet-500"
+                        <div className="flex justify-end gap-3">
+                          <form action={alternarAdmin}>
+                            <input type="hidden" name="userId" value={perfil.id} />
+                            <input type="hidden" name="novoValor" value={(!perfil.is_admin).toString()} />
+                            <button
+                              type="submit"
+                              className="text-xs text-ink-muted underline decoration-sand-300 underline-offset-4 hover:text-garnet-500"
+                            >
+                              {perfil.is_admin ? "remover admin" : "tornar admin"}
+                            </button>
+                          </form>
+                          <FormularioComConfirmacao
+                            action={alternarBloqueio}
+                            mensagemConfirmacao={
+                              perfil.is_blocked
+                                ? `Desbloquear ${perfil.full_name ?? perfil.email}?`
+                                : `Bloquear ${perfil.full_name ?? perfil.email}? A pessoa perde acesso ao conteúdo imediatamente.`
+                            }
                           >
-                            {perfil.is_admin ? "remover admin" : "tornar admin"}
-                          </button>
-                        </form>
+                            <input type="hidden" name="userId" value={perfil.id} />
+                            <input type="hidden" name="novoValor" value={(!perfil.is_blocked).toString()} />
+                            <button
+                              type="submit"
+                              className="text-xs text-wrong underline decoration-garnet-100 underline-offset-4 hover:text-garnet-600"
+                            >
+                              {perfil.is_blocked ? "desbloquear" : "bloquear"}
+                            </button>
+                          </FormularioComConfirmacao>
+                        </div>
                       )}
                     </td>
                   </tr>
