@@ -106,11 +106,26 @@ export default function PaginaImportacao() {
         setModulos((atual) => [...atual, novoModulo].sort((a, b) => a.title.localeCompare(b.title)));
       }
 
+      // upsert + ignoreDuplicates: se a mesma pergunta já existe nesse módulo
+      // (constraint única em module_id+question), a linha é ignorada em vez
+      // de duplicada — e o .select() só retorna as que realmente entraram,
+      // então dá pra contar quantas eram novas de fato.
       const linhas = paraLinhasDoBanco(flashcardsPreview, moduleId);
-      const { error: erroFlashcards } = await supabase.from("flashcards").insert(linhas);
+      const { data: inseridos, error: erroFlashcards } = await supabase
+        .from("flashcards")
+        .upsert(linhas, { onConflict: "module_id,question", ignoreDuplicates: true })
+        .select("id");
       if (erroFlashcards) throw erroFlashcards;
 
-      setMensagem({ tipo: "sucesso", texto: `${linhas.length} flashcard(s) importado(s) com sucesso!` });
+      const totalNovos = inseridos?.length ?? 0;
+      const totalDuplicados = linhas.length - totalNovos;
+      setMensagem({
+        tipo: "sucesso",
+        texto:
+          totalDuplicados > 0
+            ? `${totalNovos} flashcard(s) novo(s) importado(s). ${totalDuplicados} já existiam nesse módulo e foram ignorados.`
+            : `${totalNovos} flashcard(s) importado(s) com sucesso!`,
+      });
       setTextoBruto("");
       setFlashcardsPreview([]);
       setErrosPreview([]);

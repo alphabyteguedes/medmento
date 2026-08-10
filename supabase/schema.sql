@@ -35,7 +35,10 @@ create table if not exists public.flashcards (
   correct_answer_letter text not null check (correct_answer_letter in ('A', 'B', 'C', 'D', 'E')),
   explanation text not null default '',
   tip text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Evita importar a mesma pergunta duas vezes no mesmo módulo (o
+  -- importador em /admin/import usa isso como alvo de ON CONFLICT DO NOTHING).
+  constraint flashcards_module_question_key unique (module_id, question)
 );
 
 create index if not exists flashcards_module_id_idx on public.flashcards (module_id);
