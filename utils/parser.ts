@@ -87,8 +87,9 @@ const REGEX_PERGUNTA = /^\s*(?:\d+[.)]\s*)?([\s\S]*?)\n\s*A\)/;
 // Captura cada alternativa "A) texto" até "E) texto".
 const REGEX_ALTERNATIVA = /^([A-E])\)\s*(.+)$/gm;
 
-// Captura a letra da resposta correta em "Resposta: B — texto...".
-const REGEX_RESPOSTA = /Resposta:\s*([A-E])\b/i;
+// Captura a letra da resposta correta em "Resposta: B — texto..." ou
+// "Resposta correta: B) texto..." (variação também usada por alguns curadores).
+const REGEX_RESPOSTA = /Resposta(?:\s+correta)?:\s*([A-E])\b/i;
 
 // Localiza o início da seção de explicação (não captura o resto: isso é feito
 // separadamente, para permitir que a seção de macete seja opcional).
@@ -194,8 +195,10 @@ function parseUmBloco(bloco: string, numeroOriginal: number): FlashcardExtraido 
     throw new Error(`A letra de resposta ("${correct_answer_letter}") não corresponde a nenhuma alternativa listada na FRENTE.`);
   }
 
-  // ---- VERSO: explicação + macete (macete é opcional) ----
-  const { explanation, tip } = extrairExplicacaoETip(versoTexto);
+  // ---- VERSO: explicação + macete (rótulo "Explicação:" e macete são opcionais) ----
+  const fimLinhaResposta = versoTexto.indexOf("\n", respostaMatch.index ?? 0);
+  const indiceAposResposta = fimLinhaResposta === -1 ? versoTexto.length : fimLinhaResposta + 1;
+  const { explanation, tip } = extrairExplicacaoETip(versoTexto, indiceAposResposta);
 
   return {
     numeroOriginal,
@@ -207,25 +210,34 @@ function parseUmBloco(bloco: string, numeroOriginal: number): FlashcardExtraido 
   };
 }
 
-function extrairExplicacaoETip(versoTexto: string): { explanation: string; tip: string | null } {
+/**
+ * @param indiceAposResposta Posição logo após a linha "Resposta: ..." — usada
+ * como início da explicação quando não existe o rótulo "Explicação:" (alguns
+ * curadores vão direto da resposta para o texto explicativo).
+ */
+function extrairExplicacaoETip(
+  versoTexto: string,
+  indiceAposResposta: number
+): { explanation: string; tip: string | null } {
   const inicioExplicacao = versoTexto.match(REGEX_INICIO_EXPLICACAO);
-  if (!inicioExplicacao || inicioExplicacao.index === undefined) {
-    throw new Error('Seção "Explicação:" não encontrada.');
-  }
+  const inicioConteudo =
+    inicioExplicacao && inicioExplicacao.index !== undefined
+      ? inicioExplicacao.index + inicioExplicacao[0].length
+      : indiceAposResposta;
 
-  const apósExplicacao = versoTexto.slice(inicioExplicacao.index + inicioExplicacao[0].length);
+  const restante = versoTexto.slice(inicioConteudo);
 
-  const inicioMacete = apósExplicacao.match(REGEX_INICIO_MACETE);
+  const inicioMacete = restante.match(REGEX_INICIO_MACETE);
   if (!inicioMacete || inicioMacete.index === undefined) {
-    // Nem toda ficha tem macete/pegadinha — tudo depois de "Explicação:" é a explicação.
-    return { explanation: apósExplicacao.trim(), tip: null };
+    // Nem toda ficha tem macete/pegadinha — tudo que sobrou é a explicação.
+    return { explanation: restante.trim(), tip: null };
   }
 
   // Remove símbolos/emoji soltos que ficam grudados no fim da explicação
   // quando o macete é anunciado por algo como "⚠️ Pegadinha:" (o emoji não
   // faz parte do rótulo que REGEX_INICIO_MACETE procura, então sobra aqui).
-  const explanation = apósExplicacao.slice(0, inicioMacete.index).replace(REGEX_SIMBOLOS_FINAIS, "").trim();
-  const tip = apósExplicacao.slice(inicioMacete.index + inicioMacete[0].length).trim();
+  const explanation = restante.slice(0, inicioMacete.index).replace(REGEX_SIMBOLOS_FINAIS, "").trim();
+  const tip = restante.slice(inicioMacete.index + inicioMacete[0].length).trim();
   return { explanation, tip: tip || null };
 }
 
