@@ -20,8 +20,10 @@
 // O parser é DELIBERADAMENTE tolerante a variações comuns de quem cola o
 // texto à mão: emoji/símbolos antes de "FLASHCARD"/"Macete"/"Pegadinha"
 // ("🟦 FLASHCARD 2", "⚠️ Pegadinha:"), "flashcard" em minúsculo, cabeçalhos
-// como "FRENTE — Pergunta" / "VERSO — Resposta", pergunta sem o número na
-// frente, e blocos sem seção de macete.
+// como "FRENTE — Pergunta" / "VERSO — Resposta", blocos numerados como
+// "1. FRENTE" (sem a palavra "FLASHCARD"), pergunta sem o número na frente,
+// "Resposta:" ou "Resposta correta:", explicação com ou sem o rótulo
+// "Explicação:", e blocos sem seção de macete.
 //
 // É tolerante a falhas por bloco: se um bloco individual estiver malformado,
 // ele é reportado em `erros` e os demais blocos continuam sendo processados
@@ -72,10 +74,15 @@ export interface ResultadoParse {
 
 // ---- Regex principais -------------------------------------------------------
 
-// Encontra o início de cada bloco. Aceita até 8 caracteres de "lixo" antes de
-// "FLASHCARD" (emoji, símbolos, espaços) — esse prefixo fica grudado no
-// início do bloco seguinte, então não sobra sujeira no fim do bloco anterior.
-const REGEX_CABECALHO_BLOCO = /[^\n]{0,8}FLASHCARD\s+(\d+)/gi;
+// Encontra o início de cada bloco. Dois formatos de cabeçalho são aceitos:
+// "FLASHCARD 1" (com até 8 caracteres de "lixo" antes — emoji, símbolos —
+// que ficam grudados no início do bloco seguinte, sem sobrar sujeira no
+// anterior) e "1. FRENTE" (número + ponto direto na linha do "FRENTE",
+// sem a palavra "FLASHCARD" em lugar nenhum).
+const REGEX_CABECALHO_BLOCO = /[^\n]{0,8}FLASHCARD\s+\d+|^[ \t]*\d+\.\s*FRENTE\b/gim;
+
+// Extrai o número de um bloco já identificado, no formato que ele usar.
+const REGEX_NUMERO_BLOCO = /FLASHCARD\s+(\d+)|^[ \t]*(\d+)\.\s*FRENTE\b/im;
 
 // Separa cada bloco em conteúdo da FRENTE e do VERSO. Tolera texto extra na
 // mesma linha do cabeçalho ("FRENTE — Pergunta", "VERSO — Resposta").
@@ -97,7 +104,9 @@ const REGEX_INICIO_EXPLICACAO = /Explica[cç][aã]o:\s*\n?/i;
 
 // Localiza o início da seção de macete/pegadinha, onde quer que apareça (não
 // exige estar "sozinho" na linha, então o emoji antes dela não atrapalha).
-const REGEX_INICIO_MACETE = /(?:Macete|Pegadinha)\s*:\s*/i;
+// Tolera uma palavra extra entre o rótulo e os dois-pontos ("Pegadinha
+// clássica:", "Macete rápido:").
+const REGEX_INICIO_MACETE = /(?:Macete|Pegadinha)(?:\s+\p{L}+)?\s*:\s*/iu;
 
 // Símbolos/emoji soltos (setas, dingbats, emoji, seletor de variação) que
 // sobram no fim da explicação quando o macete é anunciado por algo como
@@ -144,8 +153,8 @@ export function parseFlashcardsBrutos(textoBruto: string): ResultadoParse {
   }
 
   blocos.forEach((bloco, indice) => {
-    const numeroMatch = bloco.match(/FLASHCARD\s+(\d+)/i);
-    const numeroOriginal = numeroMatch ? Number(numeroMatch[1]) : indice + 1;
+    const numeroMatch = bloco.match(REGEX_NUMERO_BLOCO);
+    const numeroOriginal = numeroMatch ? Number(numeroMatch[1] ?? numeroMatch[2]) : indice + 1;
 
     try {
       flashcards.push(parseUmBloco(bloco, numeroOriginal));
