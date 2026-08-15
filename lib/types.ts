@@ -7,6 +7,8 @@ export interface Modulo {
   id: string;
   title: string;
   created_at: string;
+  /** null = módulo oficial; <uuid> = módulo pessoal daquele usuário. */
+  created_by: string | null;
 }
 
 export interface AlternativasFlashcard {

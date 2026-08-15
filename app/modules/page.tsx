@@ -14,9 +14,10 @@ export default async function PaginaModulos() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: modulos }, { data: perfil }] = await Promise.all([
+  const [{ data: modulos }, { data: perfil }, { count: totalFlashcards }] = await Promise.all([
     supabase.from("modules").select("*").order("title"),
     supabase.from("user_profiles").select("*").eq("id", user.id).single(),
+    supabase.from("flashcards").select("*", { count: "exact", head: true }),
   ]);
 
   const primeiroNome = (perfil?.full_name ?? perfil?.email ?? "").split(" ")[0] || null;
@@ -42,6 +43,20 @@ export default async function PaginaModulos() {
       </header>
 
       <main className="mx-auto max-w-xl space-y-6 p-6">
+        {!!totalFlashcards && (
+          <Link
+            href="/modules/aleatorio"
+            className="group flex items-center gap-4 rounded-lg bg-garnet-500 p-4 text-paper-raised shadow-[0_4px_14px_-6px_rgba(140,47,53,0.5)] transition-colors hover:bg-garnet-600"
+          >
+            <span className="text-2xl">🔀</span>
+            <div className="flex-1">
+              <p className="font-serif text-lg italic">Revisão aleatória</p>
+              <p className="text-sm text-paper-raised/80">Mistura os {totalFlashcards} flashcards de todos os assuntos</p>
+            </div>
+            <span className="transition-transform group-hover:translate-x-0.5">→</span>
+          </Link>
+        )}
+
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-ink-faint">Seus módulos</p>
           <h1 className="font-serif text-3xl italic text-ink">Escolha um assunto</h1>
@@ -58,7 +73,14 @@ export default async function PaginaModulos() {
                   <span className="font-serif text-lg italic text-ink-faint group-hover:text-garnet-500">
                     {String(indice + 1).padStart(2, "0")}
                   </span>
-                  <span className="flex-1 font-medium text-ink">{modulo.title}</span>
+                  <span className="flex-1 font-medium text-ink">
+                    {modulo.title}
+                    {modulo.created_by === user.id && (
+                      <span className="ml-2 rounded-full bg-sand-100 px-2 py-0.5 text-xs font-normal text-ink-muted">
+                        pessoal
+                      </span>
+                    )}
+                  </span>
                   <span className="text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-garnet-500">
                     →
                   </span>
@@ -71,6 +93,13 @@ export default async function PaginaModulos() {
             Nenhum módulo cadastrado ainda.
           </p>
         )}
+
+        <Link
+          href="/modules/importar"
+          className="block text-center text-sm text-ink-muted underline decoration-sand-300 underline-offset-4 hover:text-garnet-500"
+        >
+          Importar minhas questões
+        </Link>
 
         {perfil?.is_admin && (
           <Link

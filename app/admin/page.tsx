@@ -28,6 +28,8 @@ export default async function PainelAdmin() {
     contagemPorModulo.set(f.module_id, (contagemPorModulo.get(f.module_id) ?? 0) + 1);
   });
 
+  const emailPorUsuario = new Map(listaPerfis.map((p) => [p.id, p.email ?? p.full_name ?? "usuário"]));
+
   const dataCorte = new Date(Date.now() - DIAS_JANELA_ATIVO * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const usuariosAtivos = listaPerfis.filter((p) => p.last_study_date && p.last_study_date >= dataCorte).length;
   const xpTotal = listaPerfis.reduce((soma, p) => soma + p.xp, 0);
@@ -62,7 +64,14 @@ export default async function PainelAdmin() {
             {listaModulos.map((modulo) => (
               <li key={modulo.id} className="flex items-center justify-between gap-4 p-4">
                 <div>
-                  <p className="font-medium text-ink">{modulo.title}</p>
+                  <p className="font-medium text-ink">
+                    {modulo.title}
+                    {modulo.created_by && (
+                      <span className="ml-2 rounded-full bg-sand-100 px-2 py-0.5 text-xs font-normal text-ink-muted">
+                        pessoal de {emailPorUsuario.get(modulo.created_by) ?? "usuário"}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-ink-faint">
                     {contagemPorModulo.get(modulo.id) ?? 0} flashcard(s)
                   </p>

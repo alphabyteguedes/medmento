@@ -18,7 +18,10 @@ create extension if not exists "pgcrypto";
 create table if not exists public.modules (
   id uuid primary key default gen_random_uuid(),
   title text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- null = módulo oficial (curado via /admin/import, visível a todos).
+  -- <uuid> = módulo pessoal daquele usuário (visível só a ele e a admins).
+  created_by uuid references auth.users(id) on delete cascade
 );
 
 -- -----------------------------------------------------------------------------
@@ -130,21 +133,31 @@ alter table public.modules enable row level security;
 alter table public.flashcards enable row level security;
 alter table public.user_profiles enable row level security;
 
--- Usuário autenticado e NÃO bloqueado pode LER módulos e flashcards (é o
--- conteúdo de estudo) — usuário bloqueado deixa de enxergar tudo, mesmo que
--- contorne o middleware (defesa em profundidade).
-create policy "modules: leitura para autenticados"
+-- Usuário autenticado e NÃO bloqueado enxerga módulos OFICIAIS (created_by
+-- null) e os PRÓPRIOS módulos pessoais; admin enxerga todos, para moderação.
+create policy "modules: leitura de módulos públicos ou próprios"
   on public.modules for select
   to authenticated
-  using (not public.is_blocked());
+  using (
+    not public.is_blocked()
+    and (created_by is null or created_by = auth.uid() or public.is_admin())
+  );
 
-create policy "flashcards: leitura para autenticados"
+-- Flashcards seguem a visibilidade do módulo a que pertencem.
+create policy "flashcards: leitura conforme visibilidade do módulo"
   on public.flashcards for select
   to authenticated
-  using (not public.is_blocked());
+  using (
+    not public.is_blocked()
+    and exists (
+      select 1 from public.modules m
+      where m.id = flashcards.module_id
+        and (m.created_by is null or m.created_by = auth.uid() or public.is_admin())
+    )
+  );
 
 -- Somente administradores podem criar/editar/excluir módulos e flashcards
--- — usado pelo importador em /admin/import.
+-- OFICIAIS — usado pelo importador em /admin/import.
 create policy "modules: escrita apenas para admin"
   on public.modules for all
   to authenticated
@@ -156,6 +169,24 @@ create policy "flashcards: escrita apenas para admin"
   to authenticated
   using (public.is_admin())
   with check (public.is_admin());
+
+-- Qualquer usuário gerencia os PRÓPRIOS módulos pessoais e as flashcards
+-- dentro deles — usado pelo importador em /modules/importar. Não alcança
+-- módulos oficiais nem de outros usuários.
+create policy "modules: usuário gerencia seus próprios módulos pessoais"
+  on public.modules for all
+  to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid() and not public.is_blocked());
+
+create policy "flashcards: usuário gerencia flashcards dos próprios módulos"
+  on public.flashcards for all
+  to authenticated
+  using (exists (select 1 from public.modules m where m.id = flashcards.module_id and m.created_by = auth.uid()))
+  with check (
+    not public.is_blocked()
+    and exists (select 1 from public.modules m where m.id = flashcards.module_id and m.created_by = auth.uid())
+  );
 
 -- Cada usuário enxerga e altera o PRÓPRIO perfil (XP, streak etc.)...
 create policy "user_profiles: usuário vê o próprio perfil"
